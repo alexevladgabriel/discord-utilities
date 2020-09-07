@@ -24,7 +24,7 @@ void AccountsCheck()
 	}
 
 	Handle hData = json_object();
-	json_object_set_new(hData, "limit", json_integer(1000));
+	json_object_set_new(hData, "limit", json_integer(5000));
 	json_object_set_new(hData, "afterID", json_string(""));
 	GetMembers(hData);
 }
@@ -34,6 +34,10 @@ void GetMembers(Handle hData = INVALID_HANDLE)
 	if(StrEqual(g_sGuildID, "") && !StrEqual(g_sVerificationChannelID, ""))
 	{
 		LogError("[Discord-Utilities] GuildID is not provided. GetMember won't work!");
+		return;
+	}
+	if(Bot == view_as<DiscordBot>(INVALID_HANDLE))
+	{
 		return;
 	}
 	int limit = JsonObjectGetInt(hData, "limit");
@@ -143,7 +147,11 @@ public void OnGetMembersAll(Handle hMemberList)
 				found = true;
 				break;
 			}
+			delete user;
+			delete GuildUser;
 		}
+		delete user;
+		delete GuildUser;
 		if(!found)
 		{
 			char steamid[32];
@@ -164,10 +172,15 @@ public void OnGetMembersAll(Handle hMemberList)
 			Call_PushString(g_sUserID[x]);
 			Call_Finish();
 		}
+		else
+		{
+			if(strlen(g_sRoleID) > 5 && !g_bRoleGiven[x])
+			{
+				ManagingRole(g_sUserID[x], g_sRoleID, k_EHTTPMethodPUT);
+				g_bRoleGiven[x] = true;
+			}
+		}
 	}
-
-	delete user;
-	delete GuildUser;
 	
 	for(int i = 1; i <= MaxClients; i++)
 	{
@@ -544,7 +557,7 @@ void CreateCvars()
 	g_cUseSWGM = CreateConVar("sm_du_use_swgm_file", "0", "Use SWGM config file for restricting commands.");
 	g_cTimeStamps = CreateConVar("sm_du_display_timestamps", "0", "Display timestamps? Used in gameserver => discord server relay AND AdminLog");
 	g_cServerID = CreateConVar("sm_du_server_id", "1", "Increase this with every server you put this plugin in. Prevents multiple replies from the bot in verfication channel.");
-	g_cPrimaryServer = CreateConVar("sm_du_server_primary", "1", "Is this the primary server in the verification channel? Only this server will respond to generic queries.", .min=0.0, .max=1.0, .hasMin=true, .hasMax=true);
+	g_cPrimaryServer = CreateConVar("sm_du_server_primary", "0", "Is this the primary server in the verification channel? Only this server will respond to generic queries so atleast 1 server should have this 1.");
 
 	g_cLinkCommand = CreateConVar("sm_du_link_command", "!link", "Command to use in text channel.");
 	g_cViewIDCommand = CreateConVar("sm_du_viewid_command", "sm_viewid", "Command to view id.");
@@ -828,13 +841,16 @@ void ManageRole(Handle hData)
 		CreateTimer(2.0, SendManageRole, hData, TIMER_FLAG_NO_MAPCHANGE);
 		return;
 	}
-	request.SetCallbacks(HTTPCompleted, MembersDataReceive);
+	request.SetCallbacks(HTTPCompleted, OnManageRoleSent);
 	request.SetContentSize();
 	request.SetBot(Bot);
 	request.SetData(hData, route);
 	request.Send(route);
-	//delete hData;
-	//delete request;
+}
+
+public void OnManageRoleSent(Handle request, bool failure, int offset, int statuscode, any dp)
+{
+	delete request;
 }
 
 void LoadCommands()
@@ -991,7 +1007,7 @@ stock void Discord_EscapeString(char[] string, int maxlen, bool name = false)
 	}
 	ReplaceString(string, maxlen, "#", "＃");
 	ReplaceString(string, maxlen, "@", "＠");
-	ReplaceString(string, maxlen, ":", "");
+	//ReplaceString(string, maxlen, ":", "");
 	ReplaceString(string, maxlen, "_", "ˍ");
 	ReplaceString(string, maxlen, "'", "＇");
 	ReplaceString(string, maxlen, "`", "＇");

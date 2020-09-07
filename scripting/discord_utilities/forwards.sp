@@ -172,6 +172,7 @@ public void OnClientPutInServer(int client)
 	g_bMember[client] = false;
 	g_sUniqueCode[client][0] = '\0';
 	g_sUserID[client][0] = '\0';
+	g_bRoleGiven[client] = false;
 }
 
 public Action OnClientPreAdminCheck(int client)
